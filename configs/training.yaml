@@ -1,0 +1,16 @@
+data:
+  dataset_name: ductran150499/ViTextEmo-TTS-sample
+
+model:
+  backbone: viterbox
+  num_emotions: 4
+  t3_unfreeze_blocks: 2
+
+optim:
+  lr: 1e-4
+  weight_decay: 1e-2
+
+training:
+  batch_size: 4
+  epochs: 10
+  lambda_emo: 0.1
