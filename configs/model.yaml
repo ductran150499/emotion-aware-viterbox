@@ -1,0 +1,7 @@
+backbone:
+  name: viterbox
+  freeze_backbone: true
+  unfreeze_layers: 2
+
+emotion:
+  num_emotions: 4

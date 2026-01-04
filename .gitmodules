@@ -1,0 +1,3 @@
+[submodule "models/backbone/models/backbone/viterbox"]
+	path = models/backbone/models/backbone/viterbox
+	url = https://github.com/iamdinhthuan/viterbox-tts.git
