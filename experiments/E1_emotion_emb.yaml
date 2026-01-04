@@ -1,0 +1,6 @@
+model:
+  emotion_embedding: true
+  partial_finetune: false
+
+training:
+  train_emotion_only: true
