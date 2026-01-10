@@ -1,48 +1,55 @@
-"""
-Wrapper around Viterbox for Emotion-Aware TTS
-
-This module integrates an external Viterbox instance and
-allows injection of learned emotion representations into
-the text encoding stage (T3).
-"""
-
 import torch
 import torch.nn as nn
 
-# import backbone class
-from models.backbone.models.backbone.viterbox import viterbox
-
-from models.emotion.emotion_embedding import EmotionEmbedding
+# Viterbox official class
+from models.backbone.models.backbone.viterbox.viterbox.tts import Viterbox
 
 
 class EmotionAwareViterbox(nn.Module):
-    def __init__(self, config):
+    """
+    Emotion-aware wrapper on top of pretrained Viterbox.
+    Only emotion embedding + optional last T3 blocks are trainable.
+    """
+
+    def __init__(self, device="cpu", num_emotions=4, t3_unfreeze_blocks=0):
         super().__init__()
 
-        # load vanilla viterbox backbone
-        self.backbone = Viterbox.from_pretrained(
-            config["backbone_device"]
-        )
+        # ✅ Load pretrained Viterbox from HuggingFace
+        self.backbone = Viterbox.from_pretrained(device)
+        self.backbone.to(device)
 
-        # emotion embedding table
-        self.emotion_emb = EmotionEmbedding(
-            num_emotions=config["num_emotions"],
-            d_model=self.backbone.model_dim  # hidden size of T3
-        )
-
-        # control freeze/unfreeze
-        self.freeze_backbone(config["freeze_backbone"])
-
-    def freeze_backbone(self, freeze=True):
+        # Freeze all backbone params
         for p in self.backbone.parameters():
-            p.requires_grad = not freeze
+            p.requires_grad = False
 
-    def forward(self, text, emotion_ids=None, **kwargs):
+        # ===== Emotion embedding =====
+        d_model = self.backbone.t3.model_dim
+        self.emotion_emb = nn.Embedding(num_emotions, d_model)
+
+        # ===== Optional: unfreeze last T3 blocks =====
+        if t3_unfreeze_blocks > 0:
+            blocks = self.backbone.t3.blocks
+            for block in blocks[-t3_unfreeze_blocks:]:
+                for p in block.parameters():
+                    p.requires_grad = True
+
+    def forward(self, text_tokens, emotion_ids):
         """
-        1. Tokenize text
-        2. Add emotion embedding
-        3. Pass text + emotion to T3 encoder
-        4. Continue with backbone generation
+        Forward only until T3 text encoding stage.
+        This is enough for emotion embedding fine-tune.
         """
-        # TODO: implement emotion injection
-        raise NotImplementedError
+
+        # Text encoding
+        text_emb = self.backbone.t3.embed(text_tokens)
+
+        # Emotion embedding
+        emo_emb = self.emotion_emb(emotion_ids).unsqueeze(1)
+
+        # Inject emotion (simple additive)
+        text_emb = text_emb + emo_emb
+
+        # Pass through T3 encoder blocks
+        for block in self.backbone.t3.blocks:
+            text_emb = block(text_emb)
+
+        return text_emb
