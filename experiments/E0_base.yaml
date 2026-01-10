@@ -1,0 +1,14 @@
+device: mps
+epochs: 3
+batch_size: 4
+
+data:
+  dataset_name: ductran150499/ViTextEmo-TTS-sample
+  split: train
+
+model:
+  num_emotions: 4
+  t3_unfreeze_blocks: 2
+
+optim:
+  lr: 1e-4
